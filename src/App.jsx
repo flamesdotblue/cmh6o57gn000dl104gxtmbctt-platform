@@ -1,28 +1,58 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react';
+import HeroCover from './components/HeroCover';
+import SummaryCards from './components/SummaryCards';
+import TransactionForm from './components/TransactionForm';
+import TransactionList from './components/TransactionList';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [transactions, setTransactions] = useState(() => {
+    try {
+      const raw = localStorage.getItem('moneytrack:transactions');
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('moneytrack:transactions', JSON.stringify(transactions));
+  }, [transactions]);
+
+  const addTransaction = (tx) => {
+    setTransactions((prev) => [
+      { id: crypto.randomUUID(), ...tx },
+      ...prev,
+    ]);
+  };
+
+  const deleteTransaction = (id) => {
+    setTransactions((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const { income, expense, balance } = useMemo(() => {
+    const income = transactions.filter(t => t.type === 'income').reduce((a, b) => a + Number(b.amount || 0), 0);
+    const expense = transactions.filter(t => t.type === 'expense').reduce((a, b) => a + Number(b.amount || 0), 0);
+    const balance = income - expense;
+    return { income, expense, balance };
+  }, [transactions]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-lg">
-        <h1 className="text-3xl font-bold text-gray-800 mb-4">
-          Vibe Coding Platform
-        </h1>
-        <p className="text-gray-600 mb-6">
-          Your AI-powered development environment
-        </p>
-        <div className="text-center">
-          <button
-            onClick={() => setCount(count + 1)}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded"
-          >
-            Count is {count}
-          </button>
-        </div>
-      </div>
+    <div className="min-h-screen w-full bg-black text-white font-inter">
+      <HeroCover />
+
+      <main className="mx-auto w-full max-w-md px-4 -mt-16 relative z-10">
+        <SummaryCards balance={balance} income={income} expense={expense} />
+
+        <section aria-label="Add transaction" className="mt-6">
+          <TransactionForm onAdd={addTransaction} />
+        </section>
+
+        <section aria-label="Recent transactions" className="mt-6 pb-24">
+          <TransactionList transactions={transactions} onDelete={deleteTransaction} />
+        </section>
+      </main>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
